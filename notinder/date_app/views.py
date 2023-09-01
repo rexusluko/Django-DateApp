@@ -7,7 +7,6 @@ from .models import *
 from .serializers import *
 from django.db.models import Q
 from .photo import save_photo_to_minio
-from .celery import app as celery_app
 
 class CreateUserAPIView(APIView):
     def post(self, request):
@@ -68,8 +67,10 @@ class LikeUserAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Отправить задачу на создание лайка в фоновом режиме
-        celery_app.send_task("your_app.tasks.create_like", args=[user.id, liked_user.id])
+        like = Like.objects.create(sender=user, receiver=liked_user, is_liked=True)
+        if Like.objects.filter(sender=liked_user, receiver=user, is_liked=True).exists():
+            Match.objects.create(friend1=user, friend2=liked_user)
+            return Response({"message": "Liked and matched"}, status=status.HTTP_200_OK)
 
         return Response({"message": "Liked"}, status=status.HTTP_200_OK)
 
@@ -85,7 +86,6 @@ class DislikeUserAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Отправить задачу на создание дизлайка в фоновом режиме
-        celery_app.send_task("your_app.tasks.create_dislike", args=[user.id, disliked_user.id])
+        dislike = Like.objects.create(sender=user, receiver=disliked_user, is_liked=False)
 
         return Response({"message": "Disliked"}, status=status.HTTP_200_OK)

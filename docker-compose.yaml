@@ -10,7 +10,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - redis
   db:
     image: postgres:12
     environment:
@@ -32,24 +31,6 @@ services:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
     command: server --console-address ":9001" /data
-
-  rabbitmq:
-    image: rabbitmq:3.8
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-  celery:
-    build: .
-    volumes:
-      - .:/notinder
-    command: celery -A notinder worker --loglevel=info
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
 
 volumes:
   postgres_data:

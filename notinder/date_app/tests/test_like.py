@@ -67,7 +67,7 @@ def test_like(api_client):
     find2_response = api_client.get(reverse('find-partner'), headers=headers2)
 
     like2_response = api_client.post(reverse('like'), {"user_id": find2_response.data["id"]}, headers=headers2)
-    assert like2_response.data["message"] == "Liked"
+    assert like2_response.data["message"] == "Liked and matched"
 
     find3_response = api_client.get(reverse('find-partner'), headers=headers1)
     dislike_response = api_client.post(reverse('dislike'), {"user_id": find3_response.data["id"]}, headers=headers1)
