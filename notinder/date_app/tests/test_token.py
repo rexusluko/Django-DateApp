@@ -13,7 +13,6 @@ def test_token(api_client):
         "email": "new_boy5@example.com",
         "zodiac_sign": "Cancer",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), user_data)
 

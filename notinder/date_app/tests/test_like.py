@@ -22,7 +22,6 @@ def test_like(api_client):
         "email": "new_boy5@example.com",
         "zodiac_sign": "Cancer",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), main_user)
     most_compatible_user = {
@@ -32,7 +31,6 @@ def test_like(api_client):
         "email": "new_girl3@example.com",
         "zodiac_sign": "Leo",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), most_compatible_user)
     less_compatible_user = {
@@ -42,7 +40,6 @@ def test_like(api_client):
         "email": "bad_girl6@example.com",
         "zodiac_sign": "Virgo",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), less_compatible_user)
 
@@ -67,7 +64,7 @@ def test_like(api_client):
     find2_response = api_client.get(reverse('find-partner'), headers=headers2)
 
     like2_response = api_client.post(reverse('like'), {"user_id": find2_response.data["id"]}, headers=headers2)
-    assert like2_response.data["message"] == "Liked and matched"
+    assert like2_response.data["message"] == "Liked"
 
     find3_response = api_client.get(reverse('find-partner'), headers=headers1)
     dislike_response = api_client.post(reverse('dislike'), {"user_id": find3_response.data["id"]}, headers=headers1)

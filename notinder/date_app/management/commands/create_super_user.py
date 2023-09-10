@@ -19,7 +19,6 @@ class Command(BaseCommand):
         zodiac_sign, created = ZodiacSign.objects.get_or_create(name='Admin')
 
         gender = 'male'
-        photo_path = 'no photo'
 
         user = User.objects.create_superuser(
             username=username,
@@ -27,7 +26,6 @@ class Command(BaseCommand):
             password=password,
             zodiac_sign=zodiac_sign,  # Передаем экземпляр знака зодиака
             gender=gender,
-            photo_path=photo_path,
         )
 
         self.stdout.write(self.style.SUCCESS(f'Superuser {username} successfully created'))

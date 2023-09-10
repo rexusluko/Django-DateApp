@@ -30,7 +30,7 @@ class CustomUser(AbstractUser):
     gender = models.CharField(max_length=7)
     zodiac_sign = models.ForeignKey('ZodiacSign', on_delete=models.PROTECT)
     description = models.TextField(blank=True)
-    photo_path = models.TextField()
+    photo_path = models.TextField(null=True)
 
     first_name = None
     last_name = None

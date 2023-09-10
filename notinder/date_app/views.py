@@ -1,4 +1,3 @@
-from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -6,22 +5,11 @@ from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 from django.db.models import Q
-from .photo import save_photo_to_minio
+from .tasks import create_like, create_dislike
 
-class CreateUserAPIView(APIView):
-    def post(self, request):
-        data = request.data.copy()
-        if data['photo']:
-            print("AAA")
-            photo_path = save_photo_to_minio(data.pop('photo').pop())
-        else:
-            photo_path = 'no photo'
-        data['photo_path'] = photo_path
-        serializer = UserSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
+class CreateUserAPIView(generics.CreateAPIView):
+    serializer_class = UserSerializer
 
 class MostCompatibleUserAPIView(generics.RetrieveAPIView):
     serializer_class = MostCompatibleUserSerializer
@@ -31,8 +19,7 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
         user = self.request.user
         gender_filter = 'female' if user.gender == 'male' else 'male'  # Определение фильтра по полу
         # Получение списка пользователей, которых пользователь уже лайкнул или дизлайкнул
-        liked_users = Like.objects.filter(sender=user).values_list('receiver', flat=True)
-        disliked_users = Like.objects.filter(sender=user, is_liked=False).values_list('receiver', flat=True)
+        liked_and_disliked_users = Like.objects.filter(sender=user)
         # Выборка всех совместимостей, связанных с знаком пользователя
         compatibilities = Compatibility.objects.filter(
             Q(sign1=user.zodiac_sign) | Q(sign2=user.zodiac_sign)
@@ -45,7 +32,7 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
             # Выборка пользователей с приоритетным знаком
             compatible_users = CustomUser.objects.filter(
                 zodiac_sign=compatible_sign, gender=gender_filter
-            ).exclude(id__in=liked_users).exclude(id__in=disliked_users)
+            ).exclude(id__in=liked_and_disliked_users)
             # Если есть пользователь с приоритетным знаком, то возвращаем его, иначе переходим к след. знаку
             if compatible_users.exists():
                 partner = compatible_users.first()
@@ -54,6 +41,7 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
 
 
 class LikeUserAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
     def post(self, request):
         user = request.user
 
@@ -67,14 +55,14 @@ class LikeUserAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        like = Like.objects.create(sender=user, receiver=liked_user, is_liked=True)
-        if Like.objects.filter(sender=liked_user, receiver=user, is_liked=True).exists():
-            Match.objects.create(friend1=user, friend2=liked_user)
-            return Response({"message": "Liked and matched"}, status=status.HTTP_200_OK)
+        # Отправить задачу на создание лайка в фоновом режиме
+        create_like.delay(user.id, liked_user.id)
 
         return Response({"message": "Liked"}, status=status.HTTP_200_OK)
 
+
 class DislikeUserAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
     def post(self, request):
         user = request.user
         # Валидация данных из запроса
@@ -86,6 +74,7 @@ class DislikeUserAPIView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        dislike = Like.objects.create(sender=user, receiver=disliked_user, is_liked=False)
+        # Отправить задачу на создание дизлайка в фоновом режиме
+        create_dislike.delay(user.id, disliked_user.id)
 
         return Response({"message": "Disliked"}, status=status.HTTP_200_OK)

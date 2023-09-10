@@ -21,7 +21,6 @@ def test_find_partner(api_client):
         "email": "new_boy5@example.com",
         "zodiac_sign": "Cancer",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), main_user)
     most_compatible_user = {
@@ -31,7 +30,6 @@ def test_find_partner(api_client):
         "email": "new_girl3@example.com",
         "zodiac_sign": "Leo",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), most_compatible_user)
     less_compatible_user = {
@@ -41,7 +39,6 @@ def test_find_partner(api_client):
         "email": "bad_girl6@example.com",
         "zodiac_sign": "Virgo",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), less_compatible_user)
     same_gender_user = {
@@ -51,7 +48,6 @@ def test_find_partner(api_client):
         "email": "bad_boy2@example.com",
         "zodiac_sign": "Aries",
         "description": "I'm a user",
-        "photo": ""
     }
     api_client.post(reverse('register'), same_gender_user)
     token_data = {
