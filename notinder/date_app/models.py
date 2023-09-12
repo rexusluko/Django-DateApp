@@ -32,10 +32,6 @@ class CustomUser(AbstractUser):
     description = models.TextField(blank=True)
     photo_path = models.TextField(null=True)
 
-    first_name = None
-    last_name = None
-    last_login = None
-
 
 class Like(models.Model):
     sender = models.ForeignKey('CustomUser', on_delete=models.PROTECT, related_name='like_sender')

@@ -1,9 +1,12 @@
 import base64
 
 from rest_framework import serializers
+
 from .models import CustomUser, ZodiacSign
 from django.core.files.base import ContentFile
-from .photo import save_photo_to_minio,load_photo_from_minio
+from minio_photos.utils.save import *
+from minio_photos.utils.load import *
+from .tasks import create_like, create_dislike
 
 
 class UserSerializer(serializers.Serializer):
@@ -13,7 +16,7 @@ class UserSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=255)
     zodiac_sign = serializers.CharField(max_length=255)
     description = serializers.CharField(max_length=255)
-    photo_path = serializers.CharField(max_length=255, write_only=True,required=False)
+    photo_path = serializers.CharField(max_length=255, write_only=True, required=False)
     photo = serializers.ImageField(write_only=True, required=False)
 
     def create(self, validated_data):
@@ -28,8 +31,8 @@ class UserSerializer(serializers.Serializer):
             photo_path = save_photo_to_minio(photo)
             user.photo_path = photo_path
             user.save()
-
         return user
+
 
 class ImageFieldFromMinio(serializers.ImageField):
     def to_representation(self, value):
@@ -62,6 +65,28 @@ class MostCompatibleUserSerializer(serializers.ModelSerializer):
 class LikeUserSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
 
+    def create(self, validated_data):
+        user = self.context['request'].user
+        liked_user_id = validated_data.get('user_id')
+
+        liked_user = CustomUser.objects.get(id=liked_user_id)
+
+        # Отправляем задачу на фоновое выполнение
+        create_like.delay(user.id, liked_user.id)
+
+        return liked_user
+
 
 class DislikeUserSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        disliked_user_id = validated_data.get('user_id')
+
+        disliked_user = CustomUser.objects.get(id=disliked_user_id)
+
+        # Отправляем задачу на фоновое выполнение
+        create_dislike.delay(user.id, disliked_user.id)
+
+        return disliked_user

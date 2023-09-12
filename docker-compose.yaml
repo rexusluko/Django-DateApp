@@ -5,7 +5,8 @@ services:
     build: .
     command: bash entrypoint.sh
     volumes:
-      - .:/notinder
+      - static_volume:/notinder/static
+      - media_volume:/notinder/media
     ports:
       - "8000:8000"
     depends_on:
@@ -27,7 +28,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - .:/minio
+      - media_volume:/notinder/media
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -39,11 +40,12 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
   celery:
     build: .
     command: bash celery-entrypoint.sh
-    volumes:
-      - .:/celery
     depends_on:
       - rabbit
       - db
@@ -53,3 +55,5 @@ services:
 volumes:
   postgres_data:
   minio_storage:
+  static_volume:
+  media_volume:

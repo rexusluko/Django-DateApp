@@ -6,10 +6,23 @@ from .models import *
 from .serializers import *
 from django.db.models import Q
 from .tasks import create_like, create_dislike
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class CreateUserAPIView(generics.CreateAPIView):
     serializer_class = UserSerializer
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        return Response({
+            'user': serializer.data,
+            'access': access_token,
+        }, status=status.HTTP_201_CREATED)
 
 class MostCompatibleUserAPIView(generics.RetrieveAPIView):
     serializer_class = MostCompatibleUserSerializer
@@ -19,7 +32,7 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
         user = self.request.user
         gender_filter = 'female' if user.gender == 'male' else 'male'  # Определение фильтра по полу
         # Получение списка пользователей, которых пользователь уже лайкнул или дизлайкнул
-        liked_and_disliked_users = Like.objects.filter(sender=user)
+        liked_and_disliked_users = Like.objects.filter(sender=user).values_list('receiver', flat=True)
         # Выборка всех совместимостей, связанных с знаком пользователя
         compatibilities = Compatibility.objects.filter(
             Q(sign1=user.zodiac_sign) | Q(sign2=user.zodiac_sign)
@@ -29,7 +42,7 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
                 compatible_sign = compatibility.sign2
             else:
                 compatible_sign = compatibility.sign1
-            # Выборка пользователей с приоритетным знаком
+            # Выборка пользователей с приоритетным знаком, исключая лайкнутых и дизлайкнутых
             compatible_users = CustomUser.objects.filter(
                 zodiac_sign=compatible_sign, gender=gender_filter
             ).exclude(id__in=liked_and_disliked_users)
@@ -40,41 +53,24 @@ class MostCompatibleUserAPIView(generics.RetrieveAPIView):
         return None
 
 
-class LikeUserAPIView(APIView):
+class LikeUserAPIView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    def post(self, request):
-        user = request.user
+    serializer_class = LikeUserSerializer
 
-        # Валидация данных из запроса
-        serializer = LikeUserSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        liked_user_id = serializer.validated_data['user_id']
-
-        try:
-            liked_user = CustomUser.objects.get(id=liked_user_id)
-        except CustomUser.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Отправить задачу на создание лайка в фоновом режиме
-        create_like.delay(user.id, liked_user.id)
+        liked_user = serializer.save()
 
         return Response({"message": "Liked"}, status=status.HTTP_200_OK)
 
-
-class DislikeUserAPIView(APIView):
+class DislikeUserAPIView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    def post(self, request):
-        user = request.user
-        # Валидация данных из запроса
-        serializer = DislikeUserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        disliked_user_id = serializer.validated_data['user_id']
-        try:
-            disliked_user = CustomUser.objects.get(id=disliked_user_id)
-        except CustomUser.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    serializer_class = DislikeUserSerializer
 
-        # Отправить задачу на создание дизлайка в фоновом режиме
-        create_dislike.delay(user.id, disliked_user.id)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        disliked_user = serializer.save()
 
         return Response({"message": "Disliked"}, status=status.HTTP_200_OK)
